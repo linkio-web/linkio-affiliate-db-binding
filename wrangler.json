@@ -1,0 +1,16 @@
+{
+	"compatibility_date": "2025-10-08",
+	"main": "src/index.ts",
+	"name": "linkio-affiliate-db-binding",
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_id": "ff6e55d2-62f7-45f4-9d09-e4aacce96502",
+			"database_name": "linkio_affiliates"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}
