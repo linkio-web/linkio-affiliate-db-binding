@@ -1,5 +1,24 @@
 export default {
 	async fetch(request, env) {
+		const corsHeaders = {
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type",
+		};
+
+		if (request.method === "OPTIONS") {
+			return new Response(null, { status: 204, headers: corsHeaders });
+		}
+
+		const jsonResponse = (data: unknown, status = 200) =>
+			new Response(JSON.stringify(data), {
+				status,
+				headers: {
+					"content-type": "application/json",
+					...corsHeaders,
+				},
+			});
+
 		const url = new URL(request.url);
 
 		if (url.pathname === "/create" && request.method === "POST") {
@@ -8,17 +27,12 @@ export default {
 				const { code, first_name, last_name, email, phone, instagram } = body;
 
 				if (!code || !first_name || !last_name || !email || !phone) {
-					return new Response(
-						JSON.stringify({
+					return jsonResponse(
+						{
 							success: false,
 							error: "Missing required fields",
-						}),
-						{
-							status: 400,
-							headers: {
-								"content-type": "application/json",
-							},
 						},
+						400,
 					);
 				}
 
@@ -29,17 +43,12 @@ export default {
 					.first();
 
 				if (existing) {
-					return new Response(
-						JSON.stringify({
+					return jsonResponse(
+						{
 							success: false,
 							error: "Code already exists",
-						}),
-						{
-							status: 409,
-							headers: {
-								"content-type": "application/json",
-							},
 						},
+						409,
 					);
 				}
 
@@ -49,36 +58,26 @@ export default {
 					.bind(code, first_name, last_name, email, phone, instagram || null)
 					.run();
 
-				return new Response(
-					JSON.stringify({
-						success: true,
-						code,
-					}),
-					{
-						status: 200,
-						headers: {
-							"content-type": "application/json",
-						},
-					},
-				);
+				return jsonResponse({
+					success: true,
+					code,
+				});
 			} catch (e) {
 				const message = e instanceof Error ? e.message : "Unknown error";
-				return new Response(
-					JSON.stringify({
+				return jsonResponse(
+					{
 						success: false,
 						error: "Internal server error",
 						details: message,
-					}),
-					{
-						status: 500,
-						headers: {
-							"content-type": "application/json",
-						},
 					},
+					500,
 				);
 			}
 		}
 
-		return new Response("OK - Linkio Affiliate API", { status: 200 });
+		return new Response("OK - Linkio Affiliate API", {
+			status: 200,
+			headers: corsHeaders,
+		});
 	},
 } satisfies ExportedHandler<Env>;
