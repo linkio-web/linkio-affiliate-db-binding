@@ -52,6 +52,27 @@ export default {
 					);
 				}
 
+				const conflict = await env.DB.prepare(
+					"SELECT email, phone, instagram FROM affiliates WHERE email = ? OR phone = ? OR instagram = ? LIMIT 1",
+				)
+					.bind(email, phone, instagram || null)
+					.first();
+
+				if (conflict) {
+					let field = "email/phone/instagram";
+					if (conflict.email === email) field = "email";
+					else if (conflict.phone === phone) field = "phone";
+					else if (conflict.instagram === instagram) field = "instagram";
+
+					return jsonResponse(
+						{
+							success: false,
+							error: `An affiliate with this ${field} already exists`,
+						},
+						409,
+					);
+				}
+
 				await env.DB.prepare(
 					"INSERT INTO affiliates (code, first_name, last_name, email, phone, instagram, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'))",
 				)
