@@ -79,6 +79,61 @@ export default {
 					.bind(code, first_name, last_name, email, phone, instagram || null)
 					.run();
 
+				// Send Discord notification
+				try {
+					const discordPayload = {
+						embeds: [
+							{
+								title: "🎉 Nouvel affilié enregistré",
+								color: 0x00ff00,
+								fields: [
+									{
+										name: "Code",
+										value: code,
+										inline: true,
+									},
+									{
+										name: "Nom",
+										value: `${first_name} ${last_name}`,
+										inline: true,
+									},
+									{
+										name: "Email",
+										value: email,
+										inline: false,
+									},
+									{
+										name: "Téléphone",
+										value: phone,
+										inline: true,
+									},
+									...(instagram
+										? [
+												{
+													name: "Instagram",
+													value: instagram,
+													inline: true,
+												},
+											]
+										: []),
+								],
+								timestamp: new Date().toISOString(),
+							},
+						],
+					};
+
+					await fetch(env.DISCORD_WEBHOOK_URL, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(discordPayload),
+					});
+				} catch (discordError) {
+					console.error("Failed to send Discord notification:", discordError);
+					// Continue execution even if Discord notification fails
+				}
+
 				return jsonResponse({
 					success: true,
 					code,

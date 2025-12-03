@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		DB: D1Database;
+		DISCORD_WEBHOOK_URL: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
