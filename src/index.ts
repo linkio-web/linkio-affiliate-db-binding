@@ -19,59 +19,80 @@ export default {
 				},
 			});
 
-		const url = new URL(request.url);
+		const generateUniqueCode = async (firstName: string, lastName: string): Promise<string> => {
+			const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+			const baseCode = (firstName.slice(0, 3) + lastName.slice(0, 3)).toUpperCase();
 
-		if (url.pathname === "/create" && request.method === "POST") {
-			try {
-				const body = await request.json();
-				const { code, first_name, last_name, email, phone, instagram } = body;
+			let code = baseCode;
+			let attempt = 0;
+			const maxAttempts = 100;
 
-				if (!code || !first_name || !last_name || !email || !phone) {
-					return jsonResponse(
-						{
-							success: false,
-							error: "Missing required fields",
-						},
-						400,
-					);
-				}
-
+			while (attempt < maxAttempts) {
 				const existing = await env.DB.prepare(
 					"SELECT code FROM affiliates WHERE code = ?",
 				)
 					.bind(code)
 					.first();
 
-				if (existing) {
+				if (!existing) {
+					return code;
+				}
+
+				// Add random characters with numbers
+				const randomSuffix = Array.from({ length: 3 }, () =>
+					chars[Math.floor(Math.random() * chars.length)]
+				).join("");
+				code = baseCode + randomSuffix;
+				attempt++;
+			}
+
+			// Fallback: fully random code
+			return Array.from({ length: 8 }, () =>
+				chars[Math.floor(Math.random() * chars.length)]
+			).join("");
+		};
+
+		const url = new URL(request.url);
+
+		if (url.pathname === "/create" && request.method === "POST") {
+			try {
+				const body = await request.json();
+				const { first_name, last_name, email, phone, instagram } = body;
+
+				if (!first_name || !last_name || !email || !phone) {
 					return jsonResponse(
 						{
 							success: false,
-							error: "Code already exists",
+							error: "Champs requis manquants",
 						},
-						409,
+						400,
 					);
 				}
 
 				const conflict = await env.DB.prepare(
-					"SELECT email, phone, instagram FROM affiliates WHERE email = ? OR phone = ? OR instagram = ? LIMIT 1",
+					"SELECT code, email, phone, instagram FROM affiliates WHERE email = ? OR phone = ? OR instagram = ? LIMIT 1",
 				)
 					.bind(email, phone, instagram || null)
 					.first();
 
 				if (conflict) {
-					let field = "email/phone/instagram";
+					let field = "email/téléphone/instagram";
 					if (conflict.email === email) field = "email";
-					else if (conflict.phone === phone) field = "phone";
+					else if (conflict.phone === phone) field = "téléphone";
 					else if (conflict.instagram === instagram) field = "instagram";
 
 					return jsonResponse(
 						{
 							success: false,
-							error: `An affiliate with this ${field} already exists`,
+							error: `Cet affilié existe déjà`,
+							code: conflict.code,
 						},
 						409,
 					);
 				}
+
+				// Generate unique code
+				const code = await generateUniqueCode(first_name, last_name);
 
 				await env.DB.prepare(
 					"INSERT INTO affiliates (code, first_name, last_name, email, phone, instagram, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'))",
@@ -139,11 +160,11 @@ export default {
 					code,
 				});
 			} catch (e) {
-				const message = e instanceof Error ? e.message : "Unknown error";
+				const message = e instanceof Error ? e.message : "Erreur inconnue";
 				return jsonResponse(
 					{
 						success: false,
-						error: "Internal server error",
+						error: "Erreur interne du serveur",
 						details: message,
 					},
 					500,
